@@ -3,169 +3,411 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>글로벌 반도체 칩 스펙 비교 대시보드</title>
+    <title>글로벌 반도체 칩 스펙 비교 대시보드 Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+<body class="bg-slate-900 text-slate-100 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300 min-h-screen p-4 md:p-8">
     <div class="max-w-7xl mx-auto">
-        <header class="mb-8 border-b border-slate-700 pb-4 flex justify-between items-end flex-wrap gap-4">
+        
+        <!-- 상단 헤더 & 테마 토글 -->
+        <header class="mb-8 border-b border-slate-700/60 pb-6 flex justify-between items-center flex-wrap gap-4">
             <div>
-                <h1 class="text-3xl md:text-4xl font-bold text-sky-400 flex items-center gap-3">
-                    <span>💻</span> 글로벌 반도체 칩 스펙 비교 대시보드
+                <h1 class="text-3xl md:text-4xl font-extrabold text-sky-400 flex items-center gap-3">
+                    <span>💻</span> 반도체 칩 스펙 비교 대시보드 <span class="text-xs bg-sky-500/20 text-sky-400 border border-sky-500/30 px-2 py-0.5 rounded-full">Pro</span>
                 </h1>
-                <p class="text-slate-400 mt-2">최신 주요 CPU, GPU, Mobile AP 및 AI 반도체 성능 제원 분석</p>
+                <p class="text-slate-400 dark:text-slate-400 mt-2 text-sm md:text-base">글로벌 주요 CPU, GPU, Mobile AP 및 AI 반도체 스펙 분석 & 1:1 비교 시스템</p>
             </div>
-            <div class="text-sm text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
-                총 등록 칩: <span id="total-count" class="text-sky-400 font-bold">0</span>개
+            
+            <div class="flex items-center gap-3">
+                <button onclick="toggleDarkMode()" id="theme-btn" class="px-3.5 py-2 rounded-xl bg-slate-800 dark:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 transition flex items-center gap-2 text-sm font-medium shadow-sm">
+                    <span id="theme-icon">🌙</span> <span id="theme-text">라이트모드</span>
+                </button>
+                <div class="text-sm text-slate-400 bg-slate-800/80 px-3.5 py-2 rounded-xl border border-slate-700">
+                    등록된 칩: <span id="total-count" class="text-sky-400 font-bold">0</span>개
+                </div>
             </div>
         </header>
 
-        <!-- 필터 섹션 -->
-        <section class="bg-slate-800 p-4 rounded-xl mb-8 border border-slate-700 flex flex-wrap gap-4 items-center">
-            <span class="font-semibold text-slate-300">카테고리 필터:</span>
-            <div class="flex flex-wrap gap-2" id="filter-container">
-                <button onclick="filterCategory('ALL')" class="category-btn px-4 py-1.5 rounded-lg bg-sky-500 text-white font-medium transition">전체 보기</button>
-                <button onclick="filterCategory('CPU')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">CPU</button>
-                <button onclick="filterCategory('GPU')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">GPU</button>
-                <button onclick="filterCategory('AP')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">Mobile/PC AP</button>
-                <button onclick="filterCategory('AI')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">AI 가속기</button>
+        <!-- 필터 & 검색 섹션 -->
+        <section class="bg-slate-800/80 dark:bg-slate-800/80 p-5 rounded-2xl mb-8 border border-slate-700/70 shadow-lg space-y-4">
+            <div class="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center">
+                <!-- 검색창 -->
+                <div class="relative flex-1">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+                        🔍
+                    </span>
+                    <input type="text" id="search-input" oninput="handleSearch()" placeholder="칩 이름, 제조사, 공정으로 검색 (예: Apple, 3nm, H100)..." 
+                           class="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-slate-700 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition">
+                </div>
+
+                <!-- 칩 등록 버튼 -->
+                <button onclick="toggleModal(true)" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-md">
+                    <span>➕</span> 신규 칩 등록
+                </button>
+            </div>
+
+            <!-- 카테고리 필터 버튼 -->
+            <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-700/50 items-center">
+                <span class="text-xs font-semibold text-slate-400 mr-2">카테고리:</span>
+                <button onclick="filterCategory('ALL')" class="category-btn text-xs md:text-sm px-3.5 py-1.5 rounded-lg bg-sky-500 text-white font-medium transition">전체</button>
+                <button onclick="filterCategory('CPU')" class="category-btn text-xs md:text-sm px-3.5 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">CPU</button>
+                <button onclick="filterCategory('GPU')" class="category-btn text-xs md:text-sm px-3.5 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">GPU</button>
+                <button onclick="filterCategory('AP')" class="category-btn text-xs md:text-sm px-3.5 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">Mobile/PC AP</button>
+                <button onclick="filterCategory('AI')" class="category-btn text-xs md:text-sm px-3.5 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">AI 가속기</button>
             </div>
         </section>
 
-        <!-- 바 그래프 영역 -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h2 class="text-xl font-bold text-sky-300 mb-4">⚡ 트랜지스터 수 비교 (억 개 단위)</h2>
-                <div id="transistor-bars" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-                    <!-- 자바스크립트로 생성됨 -->
+        <!-- 1대1 스펙 직접 비교 섹션 -->
+        <section class="bg-slate-800/80 p-5 rounded-2xl mb-8 border border-sky-500/30 shadow-lg relative overflow-hidden">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <h2 class="text-lg font-bold text-sky-400 flex items-center gap-2">
+                    <span>⚖️</span> 1:1 스펙 정밀 비교
+                </h2>
+                <span class="text-xs text-slate-400">비교할 두 반도체 칩을 선택하세요.</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">첫 번째 칩 (A)</label>
+                    <select id="compare-select-1" onchange="updateComparison()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-sky-500">
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">두 번째 칩 (B)</label>
+                    <select id="compare-select-2" onchange="updateComparison()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-sky-500">
+                    </select>
                 </div>
             </div>
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h2 class="text-xl font-bold text-rose-400 mb-4">🔥 소비 전력 비교 (TDP/TGP, W 단위)</h2>
-                <div id="power-bars" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-                    <!-- 자바스크립트로 생성됨 -->
+
+            <!-- 비교 결과 카드 -->
+            <div id="compare-result" class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-700/50">
+                <!-- 자바스크립트로 출력 -->
+            </div>
+        </section>
+
+        <!-- 동적 시각화 그래프 영역 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="bg-slate-800/80 p-6 rounded-2xl border border-slate-700/70 shadow-lg">
+                <h2 class="text-lg font-bold text-sky-300 mb-4 flex items-center gap-2">
+                    <span>⚡</span> 집적도 (트랜지스터 수, 억 개)
+                </h2>
+                <div id="transistor-bars" class="space-y-3.5 max-h-[480px] overflow-y-auto pr-2">
+                </div>
+            </div>
+            <div class="bg-slate-800/80 p-6 rounded-2xl border border-slate-700/70 shadow-lg">
+                <h2 class="text-lg font-bold text-rose-400 mb-4 flex items-center gap-2">
+                    <span>🔥</span> 전력 효율성 (소비 전력, W)
+                </h2>
+                <div id="power-bars" class="space-y-3.5 max-h-[480px] overflow-y-auto pr-2">
                 </div>
             </div>
         </div>
 
-        <!-- 데이터 테이블 -->
-        <section class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-            <div class="p-4 border-b border-slate-700">
-                <h2 class="text-xl font-bold text-slate-200">📊 상세 스펙 데이터표</h2>
+        <!-- 스펙 상세 표 -->
+        <section class="bg-slate-800/80 rounded-2xl border border-slate-700/70 overflow-hidden shadow-lg">
+            <div class="p-4 border-b border-slate-700/70 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-slate-200 flex items-center gap-2">
+                    <span>📊</span> 상세 반도체 스펙 데이터베이스
+                </h2>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-slate-700/50 text-slate-300 border-b border-slate-700">
-                            <th class="p-4">칩 이름</th>
-                            <th class="p-4">제조사</th>
-                            <th class="p-4">분류</th>
-                            <th class="p-4">공정 (파운드리)</th>
-                            <th class="p-4">트랜지스터 수</th>
-                            <th class="p-4">소비 전력</th>
+                        <tr class="bg-slate-700/40 text-slate-300 text-xs md:text-sm border-b border-slate-700">
+                            <th class="p-3.5">칩 제품명</th>
+                            <th class="p-3.5">제조사</th>
+                            <th class="p-3.5">분류</th>
+                            <th class="p-3.5">공정 (파운드리)</th>
+                            <th class="p-3.5">트랜지스터</th>
+                            <th class="p-3.5">소비 전력</th>
                         </tr>
                     </thead>
-                    <tbody id="chip-table-body">
-                        <!-- JS 데이터 삽입 위치 -->
+                    <tbody id="chip-table-body" class="text-sm">
                     </tbody>
                 </table>
             </div>
         </section>
     </div>
 
+    <!-- 신규 칩 등록 모달 창 -->
+    <div id="add-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 class="text-lg font-bold text-sky-400">➕ 커스텀 반도체 칩 추가</h3>
+                <button onclick="toggleModal(false)" class="text-slate-400 hover:text-white text-xl">✕</button>
+            </div>
+            <form id="add-chip-form" onsubmit="handleAddChip(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">칩 제품명 *</label>
+                    <input type="text" id="input-name" required placeholder="예: M4 Pro" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">제조사 *</label>
+                        <input type="text" id="input-vendor" required placeholder="예: Apple" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">분류 *</label>
+                        <select id="input-type" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200">
+                            <option value="CPU">CPU</option>
+                            <option value="GPU">GPU</option>
+                            <option value="AP">AP</option>
+                            <option value="AI">AI 가속기</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">제조 공정 *</label>
+                    <input type="text" id="input-nm" required placeholder="예: 3nm (TSMC)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">트랜지스터(억 개) *</label>
+                        <input type="number" id="input-transistors" required min="1" placeholder="예: 500" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">소비전력(W) *</label>
+                        <input type="number" id="input-power" required min="1" placeholder="예: 65" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200">
+                    </div>
+                </div>
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="toggleModal(false)" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition">취소</button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition">등록하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        // 확대된 글로벌 반도체 칩 데이터
-        const chipsData = [
+        // 글로벌 확장 데이터베이스 (15개 프리셋)
+        let chipsData = [
             { name: "Apple M3 Max", vendor: "Apple", type: "AP", nm: "3nm (TSMC)", transistors: 920, power: 78 },
             { name: "Apple M2 Ultra", vendor: "Apple", type: "AP", nm: "5nm (TSMC)", transistors: 1340, power: 100 },
+            { name: "Apple A17 Pro", vendor: "Apple", type: "AP", nm: "3nm (TSMC)", transistors: 190, power: 8 },
             { name: "Intel Core i9-14900K", vendor: "Intel", type: "CPU", nm: "10nm (Intel 7)", transistors: 250, power: 253 },
             { name: "Intel Core Ultra 7 155H", vendor: "Intel", type: "CPU", nm: "4nm (Intel 4)", transistors: 200, power: 45 },
             { name: "AMD Ryzen 9 7950X", vendor: "AMD", type: "CPU", nm: "5nm (TSMC)", transistors: 131, power: 170 },
             { name: "AMD EPYC 9654 (서버용)", vendor: "AMD", type: "CPU", nm: "5nm (TSMC)", transistors: 900, power: 360 },
             { name: "NVIDIA RTX 4090", vendor: "NVIDIA", type: "GPU", nm: "4nm (TSMC 4N)", transistors: 763, power: 450 },
             { name: "NVIDIA H100 (AI 가속기)", vendor: "NVIDIA", type: "AI", nm: "4nm (TSMC 4N)", transistors: 800, power: 700 },
+            { name: "NVIDIA Blackwell B200", vendor: "NVIDIA", type: "AI", nm: "4nm (TSMC 4NP)", transistors: 2080, power: 1000 },
             { name: "AMD Instinct MI300X", vendor: "AMD", type: "AI", nm: "5nm/6nm (TSMC)", transistors: 1530, power: 750 },
             { name: "Snapdragon 8 Gen 3", vendor: "Qualcomm", type: "AP", nm: "4nm (TSMC)", transistors: 100, power: 10 },
+            { name: "Snapdragon X Elite", vendor: "Qualcomm", type: "AP", nm: "4nm (TSMC)", transistors: 450, power: 45 },
             { name: "Exynos 2400", vendor: "Samsung", type: "AP", nm: "4nm (Samsung LPP+)", transistors: 110, power: 11 },
             { name: "Google Tensor G3", vendor: "Google", type: "AP", nm: "4nm (Samsung)", transistors: 95, power: 9 }
         ];
 
         let currentCategory = 'ALL';
+        let searchQuery = '';
+        let isDarkMode = true;
 
         function renderData() {
-            const filtered = currentCategory === 'ALL' 
-                ? chipsData 
-                : chipsData.filter(chip => chip.type === currentCategory);
+            // 1. 검색어 및 카테고리 필터링
+            const filtered = chipsData.filter(chip => {
+                const matchCategory = (currentCategory === 'ALL' || chip.type === currentCategory);
+                const matchSearch = searchQuery === '' || 
+                    chip.name.toLowerCase().includes(searchQuery) || 
+                    chip.vendor.toLowerCase().includes(searchQuery) ||
+                    chip.nm.toLowerCase().includes(searchQuery);
+                return matchCategory && matchSearch;
+            });
 
             document.getElementById('total-count').innerText = filtered.length;
 
-            // 1. 테이블 갱신
+            // 2. 테이블 갱신
             const tbody = document.getElementById('chip-table-body');
-            tbody.innerHTML = filtered.map(chip => `
-                <tr class="border-b border-slate-700/50 hover:bg-slate-700/30 transition">
-                    <td class="p-4 font-semibold text-sky-400">${chip.name}</td>
-                    <td class="p-4 text-slate-300">${chip.vendor}</td>
-                    <td class="p-4"><span class="px-2 py-1 rounded bg-slate-700 text-xs text-slate-300">${chip.type}</span></td>
-                    <td class="p-4 text-slate-300">${chip.nm}</td>
-                    <td class="p-4 text-emerald-400 font-semibold">${chip.transistors.toLocaleString()}억 개</td>
-                    <td class="p-4 text-rose-400 font-semibold">${chip.power} W</td>
-                </tr>
-            `).join('');
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-500">검색 조건에 맞는 반도체 칩이 없습니다.</td></tr>`;
+            } else {
+                tbody.innerHTML = filtered.map(chip => `
+                    <tr class="border-b border-slate-700/40 hover:bg-slate-700/30 transition">
+                        <td class="p-3.5 font-semibold text-sky-400">${chip.name}</td>
+                        <td class="p-3.5 text-slate-300">${chip.vendor}</td>
+                        <td class="p-3.5"><span class="px-2 py-0.5 rounded bg-slate-700/80 text-xs text-slate-300 border border-slate-600/50">${chip.type}</span></td>
+                        <td class="p-3.5 text-slate-400">${chip.nm}</td>
+                        <td class="p-3.5 text-emerald-400 font-semibold">${chip.transistors.toLocaleString()}억 개</td>
+                        <td class="p-3.5 text-rose-400 font-semibold">${chip.power} W</td>
+                    </tr>
+                `).join('');
+            }
 
             // 기준 최대값 구하기
-            const maxTransistors = Math.max(...chipsData.map(c => c.transistors));
-            const maxPower = Math.max(...chipsData.map(c => c.power));
+            const maxTransistors = Math.max(...chipsData.map(c => c.transistors), 100);
+            const maxPower = Math.max(...chipsData.map(c => c.power), 100);
 
-            // 2. 트랜지스터 수 바 그래프 갱신
+            // 3. 트랜지스터 수 바 그래프 갱신
             const tContainer = document.getElementById('transistor-bars');
             tContainer.innerHTML = filtered.map(chip => {
                 const percent = (chip.transistors / maxTransistors) * 100;
                 return `
                     <div>
-                        <div class="flex justify-between text-sm mb-1">
+                        <div class="flex justify-between text-xs md:text-sm mb-1">
                             <span class="text-slate-300 font-medium">${chip.name} <span class="text-xs text-slate-500">(${chip.vendor})</span></span>
-                            <span class="text-sky-400 font-bold">${chip.transistors}억 개</span>
+                            <span class="text-sky-400 font-bold">${chip.transistors.toLocaleString()}억 개</span>
                         </div>
-                        <div class="w-full bg-slate-700 h-3 rounded-full overflow-hidden">
-                            <div class="bg-sky-400 h-full rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                        <div class="w-full bg-slate-700/60 h-2.5 rounded-full overflow-hidden">
+                            <div class="bg-gradient-to-r from-sky-500 to-cyan-400 h-full rounded-full transition-all duration-500" style="width: ${percent}%"></div>
                         </div>
                     </div>
                 `;
             }).join('');
 
-            // 3. 소비 전력 바 그래프 갱신
+            // 4. 소비 전력 바 그래프 갱신
             const pContainer = document.getElementById('power-bars');
             pContainer.innerHTML = filtered.map(chip => {
                 const percent = (chip.power / maxPower) * 100;
                 return `
                     <div>
-                        <div class="flex justify-between text-sm mb-1">
+                        <div class="flex justify-between text-xs md:text-sm mb-1">
                             <span class="text-slate-300 font-medium">${chip.name} <span class="text-xs text-slate-500">(${chip.vendor})</span></span>
                             <span class="text-rose-400 font-bold">${chip.power} W</span>
                         </div>
-                        <div class="w-full bg-slate-700 h-3 rounded-full overflow-hidden">
-                            <div class="bg-rose-400 h-full rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                        <div class="w-full bg-slate-700/60 h-2.5 rounded-full overflow-hidden">
+                            <div class="bg-gradient-to-r from-rose-500 to-amber-500 h-full rounded-full transition-all duration-500" style="width: ${percent}%"></div>
                         </div>
                     </div>
                 `;
             }).join('');
+
+            // 5. 1:1 비교 선택 박스 드롭다운 업데이트
+            populateCompareSelects();
         }
 
+        // 카테고리 필터링
         function filterCategory(category) {
             currentCategory = category;
-            
             const buttons = document.querySelectorAll('.category-btn');
             buttons.forEach(btn => {
                 if (btn.innerText.includes(category) || (category === 'ALL' && btn.innerText.includes('전체'))) {
-                    btn.className = 'category-btn px-4 py-1.5 rounded-lg bg-sky-500 text-white font-medium transition';
+                    btn.className = 'category-btn text-xs md:text-sm px-3.5 py-1.5 rounded-lg bg-sky-500 text-white font-medium transition';
                 } else {
-                    btn.className = 'category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition';
+                    btn.className = 'category-btn text-xs md:text-sm px-3.5 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition';
                 }
             });
-
             renderData();
         }
 
+        // 검색 처리
+        function handleSearch() {
+            searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+            renderData();
+        }
+
+        // 1대1 비교 셀렉트 채우기
+        function populateCompareSelects() {
+            const select1 = document.getElementById('compare-select-1');
+            const select2 = document.getElementById('compare-select-2');
+
+            const val1 = select1.value;
+            const val2 = select2.value;
+
+            const optionsHTML = chipsData.map((chip, idx) => `
+                <option value="${idx}">${chip.name} (${chip.vendor})</option>
+            `).join('');
+
+            select1.innerHTML = optionsHTML;
+            select2.innerHTML = optionsHTML;
+
+            // 기존 선택값 유지 또는 기본값(0, 7) 지정
+            select1.value = (val1 !== "" && val1 < chipsData.length) ? val1 : 0;
+            select2.value = (val2 !== "" && val2 < chipsData.length) ? val2 : (chipsData.length > 7 ? 7 : 1);
+
+            updateComparison();
+        }
+
+        // 1대1 비교 카드 업데이트
+        function updateComparison() {
+            const idx1 = document.getElementById('compare-select-1').value;
+            const idx2 = document.getElementById('compare-select-2').value;
+
+            const chipA = chipsData[idx1];
+            const chipB = chipsData[idx2];
+
+            if (!chipA || !chipB) return;
+
+            const tRatio = (chipA.transistors / chipB.transistors).toFixed(1);
+            const pRatio = (chipA.power / chipB.power).toFixed(1);
+
+            document.getElementById('compare-result').innerHTML = `
+                <div class="space-y-2 border-b md:border-b-0 md:border-r border-slate-700/60 pb-3 md:pb-0 md:pr-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs bg-sky-500/20 text-sky-400 px-2 py-0.5 rounded font-semibold">칩 A</span>
+                        <span class="text-xs text-slate-400">${chipA.vendor} / ${chipA.nm}</span>
+                    </div>
+                    <div class="text-base font-bold text-sky-300">${chipA.name}</div>
+                    <div class="text-xs text-slate-300 space-y-1 pt-1">
+                        <div>트랜지스터: <span class="text-emerald-400 font-bold">${chipA.transistors.toLocaleString()}억 개</span></div>
+                        <div>소비전력: <span class="text-rose-400 font-bold">${chipA.power} W</span></div>
+                    </div>
+                </div>
+
+                <div class="space-y-2 pt-1 md:pt-0">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded font-semibold">칩 B</span>
+                        <span class="text-xs text-slate-400">${chipB.vendor} / ${chipB.nm}</span>
+                    </div>
+                    <div class="text-base font-bold text-amber-300">${chipB.name}</div>
+                    <div class="text-xs text-slate-300 space-y-1 pt-1">
+                        <div>트랜지스터: <span class="text-emerald-400 font-bold">${chipB.transistors.toLocaleString()}억 개</span></div>
+                        <div>소비전력: <span class="text-rose-400 font-bold">${chipB.power} W</span></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 모달 토글
+        function toggleModal(show) {
+            const modal = document.getElementById('add-modal');
+            if (show) modal.classList.remove('hidden'), modal.classList.add('flex');
+            else modal.classList.add('hidden'), modal.classList.remove('flex');
+        }
+
+        // 신규 칩 추가 제출 처리
+        function handleAddChip(event) {
+            event.preventDefault();
+
+            const newChip = {
+                name: document.getElementById('input-name').value,
+                vendor: document.getElementById('input-vendor').value,
+                type: document.getElementById('input-type').value,
+                nm: document.getElementById('input-nm').value,
+                transistors: parseInt(document.getElementById('input-transistors').value),
+                power: parseInt(document.getElementById('input-power').value)
+            };
+
+            chipsData.unshift(newChip);
+            toggleModal(false);
+            document.getElementById('add-chip-form').reset();
+            renderData();
+        }
+
+        // 다크/라이트 모드 토글
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            const body = document.body;
+            const btnText = document.getElementById('theme-text');
+            const btnIcon = document.getElementById('theme-icon');
+
+            if (isDarkMode) {
+                body.classList.remove('bg-slate-100', 'text-slate-900');
+                body.classList.add('bg-slate-900', 'text-slate-100');
+                btnText.innerText = "라이트모드";
+                btnIcon.innerText = "🌙";
+            } else {
+                body.classList.remove('bg-slate-900', 'text-slate-100');
+                body.classList.add('bg-slate-100', 'text-slate-900');
+                btnText.innerText = "다크모드";
+                btnIcon.innerText = "☀️";
+            }
+        }
+
+        // 초기 실행
         renderData();
     </script>
 </body>
