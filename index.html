@@ -3,16 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>반도체 칩 스펙 비교 대시보드</title>
+    <title>글로벌 반도체 칩 스펙 비교 대시보드</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
     <div class="max-w-7xl mx-auto">
-        <header class="mb-8 border-b border-slate-700 pb-4">
-            <h1 class="text-3xl md:text-4xl font-bold text-sky-400 flex items-center gap-3">
-                <span>💻</span> 반도체 칩 스펙 비교 대시보드
-            </h1>
-            <p class="text-slate-400 mt-2">유명 CPU, GPU, AP 주요 반도체 성능 및 제원 비교 대시보드입니다.</p>
+        <header class="mb-8 border-b border-slate-700 pb-4 flex justify-between items-end flex-wrap gap-4">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-bold text-sky-400 flex items-center gap-3">
+                    <span>💻</span> 글로벌 반도체 칩 스펙 비교 대시보드
+                </h1>
+                <p class="text-slate-400 mt-2">최신 주요 CPU, GPU, Mobile AP 및 AI 반도체 성능 제원 분석</p>
+            </div>
+            <div class="text-sm text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+                총 등록 칩: <span id="total-count" class="text-sky-400 font-bold">0</span>개
+            </div>
         </header>
 
         <!-- 필터 섹션 -->
@@ -23,20 +28,21 @@
                 <button onclick="filterCategory('CPU')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">CPU</button>
                 <button onclick="filterCategory('GPU')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">GPU</button>
                 <button onclick="filterCategory('AP')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">Mobile/PC AP</button>
+                <button onclick="filterCategory('AI')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">AI 가속기</button>
             </div>
         </section>
 
-        <!-- 순수 바 그래프 영역 -->
+        <!-- 바 그래프 영역 -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h2 class="text-xl font-bold text-sky-300 mb-4">⚡ 트랜지스터 수 비교 (최대 920억 개 기준)</h2>
-                <div id="transistor-bars" class="space-y-4">
+                <h2 class="text-xl font-bold text-sky-300 mb-4">⚡ 트랜지스터 수 비교 (억 개 단위)</h2>
+                <div id="transistor-bars" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
                     <!-- 자바스크립트로 생성됨 -->
                 </div>
             </div>
             <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h2 class="text-xl font-bold text-rose-400 mb-4">🔥 소비 전력 비교 (최대 450W 기준)</h2>
-                <div id="power-bars" class="space-y-4">
+                <h2 class="text-xl font-bold text-rose-400 mb-4">🔥 소비 전력 비교 (TDP/TGP, W 단위)</h2>
+                <div id="power-bars" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
                     <!-- 자바스크립트로 생성됨 -->
                 </div>
             </div>
@@ -45,15 +51,16 @@
         <!-- 데이터 테이블 -->
         <section class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
             <div class="p-4 border-b border-slate-700">
-                <h2 class="text-xl font-bold text-slate-200">📊 반도체 스펙 상세 데이터</h2>
+                <h2 class="text-xl font-bold text-slate-200">📊 상세 스펙 데이터표</h2>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-slate-700/50 text-slate-300 border-b border-slate-700">
                             <th class="p-4">칩 이름</th>
+                            <th class="p-4">제조사</th>
                             <th class="p-4">분류</th>
-                            <th class="p-4">제조 공정</th>
+                            <th class="p-4">공정 (파운드리)</th>
                             <th class="p-4">트랜지스터 수</th>
                             <th class="p-4">소비 전력</th>
                         </tr>
@@ -67,12 +74,20 @@
     </div>
 
     <script>
+        // 확대된 글로벌 반도체 칩 데이터
         const chipsData = [
-            { name: "Apple M3 Max", type: "AP", nm: "3nm (TSMC)", transistors: 920, power: 78 },
-            { name: "Intel Core i9-14900K", type: "CPU", nm: "10nm (Intel 7)", transistors: 250, power: 253 },
-            { name: "AMD Ryzen 9 7950X", type: "CPU", nm: "5nm (TSMC)", transistors: 131, power: 170 },
-            { name: "NVIDIA RTX 4090", type: "GPU", nm: "4nm (TSMC 4N)", transistors: 763, power: 450 },
-            { name: "Snapdragon 8 Gen 3", type: "AP", nm: "4nm (TSMC)", transistors: 100, power: 10 }
+            { name: "Apple M3 Max", vendor: "Apple", type: "AP", nm: "3nm (TSMC)", transistors: 920, power: 78 },
+            { name: "Apple M2 Ultra", vendor: "Apple", type: "AP", nm: "5nm (TSMC)", transistors: 1340, power: 100 },
+            { name: "Intel Core i9-14900K", vendor: "Intel", type: "CPU", nm: "10nm (Intel 7)", transistors: 250, power: 253 },
+            { name: "Intel Core Ultra 7 155H", vendor: "Intel", type: "CPU", nm: "4nm (Intel 4)", transistors: 200, power: 45 },
+            { name: "AMD Ryzen 9 7950X", vendor: "AMD", type: "CPU", nm: "5nm (TSMC)", transistors: 131, power: 170 },
+            { name: "AMD EPYC 9654 (서버용)", vendor: "AMD", type: "CPU", nm: "5nm (TSMC)", transistors: 900, power: 360 },
+            { name: "NVIDIA RTX 4090", vendor: "NVIDIA", type: "GPU", nm: "4nm (TSMC 4N)", transistors: 763, power: 450 },
+            { name: "NVIDIA H100 (AI 가속기)", vendor: "NVIDIA", type: "AI", nm: "4nm (TSMC 4N)", transistors: 800, power: 700 },
+            { name: "AMD Instinct MI300X", vendor: "AMD", type: "AI", nm: "5nm/6nm (TSMC)", transistors: 1530, power: 750 },
+            { name: "Snapdragon 8 Gen 3", vendor: "Qualcomm", type: "AP", nm: "4nm (TSMC)", transistors: 100, power: 10 },
+            { name: "Exynos 2400", vendor: "Samsung", type: "AP", nm: "4nm (Samsung LPP+)", transistors: 110, power: 11 },
+            { name: "Google Tensor G3", vendor: "Google", type: "AP", nm: "4nm (Samsung)", transistors: 95, power: 9 }
         ];
 
         let currentCategory = 'ALL';
@@ -82,11 +97,14 @@
                 ? chipsData 
                 : chipsData.filter(chip => chip.type === currentCategory);
 
+            document.getElementById('total-count').innerText = filtered.length;
+
             // 1. 테이블 갱신
             const tbody = document.getElementById('chip-table-body');
             tbody.innerHTML = filtered.map(chip => `
                 <tr class="border-b border-slate-700/50 hover:bg-slate-700/30 transition">
                     <td class="p-4 font-semibold text-sky-400">${chip.name}</td>
+                    <td class="p-4 text-slate-300">${chip.vendor}</td>
                     <td class="p-4"><span class="px-2 py-1 rounded bg-slate-700 text-xs text-slate-300">${chip.type}</span></td>
                     <td class="p-4 text-slate-300">${chip.nm}</td>
                     <td class="p-4 text-emerald-400 font-semibold">${chip.transistors.toLocaleString()}억 개</td>
@@ -94,14 +112,18 @@
                 </tr>
             `).join('');
 
+            // 기준 최대값 구하기
+            const maxTransistors = Math.max(...chipsData.map(c => c.transistors));
+            const maxPower = Math.max(...chipsData.map(c => c.power));
+
             // 2. 트랜지스터 수 바 그래프 갱신
             const tContainer = document.getElementById('transistor-bars');
             tContainer.innerHTML = filtered.map(chip => {
-                const percent = (chip.transistors / 920) * 100;
+                const percent = (chip.transistors / maxTransistors) * 100;
                 return `
                     <div>
                         <div class="flex justify-between text-sm mb-1">
-                            <span class="text-slate-300 font-medium">${chip.name}</span>
+                            <span class="text-slate-300 font-medium">${chip.name} <span class="text-xs text-slate-500">(${chip.vendor})</span></span>
                             <span class="text-sky-400 font-bold">${chip.transistors}억 개</span>
                         </div>
                         <div class="w-full bg-slate-700 h-3 rounded-full overflow-hidden">
@@ -114,11 +136,11 @@
             // 3. 소비 전력 바 그래프 갱신
             const pContainer = document.getElementById('power-bars');
             pContainer.innerHTML = filtered.map(chip => {
-                const percent = (chip.power / 450) * 100;
+                const percent = (chip.power / maxPower) * 100;
                 return `
                     <div>
                         <div class="flex justify-between text-sm mb-1">
-                            <span class="text-slate-300 font-medium">${chip.name}</span>
+                            <span class="text-slate-300 font-medium">${chip.name} <span class="text-xs text-slate-500">(${chip.vendor})</span></span>
                             <span class="text-rose-400 font-bold">${chip.power} W</span>
                         </div>
                         <div class="w-full bg-slate-700 h-3 rounded-full overflow-hidden">
@@ -132,7 +154,6 @@
         function filterCategory(category) {
             currentCategory = category;
             
-            // 버튼 스타일 갱신
             const buttons = document.querySelectorAll('.category-btn');
             buttons.forEach(btn => {
                 if (btn.innerText.includes(category) || (category === 'ALL' && btn.innerText.includes('전체'))) {
