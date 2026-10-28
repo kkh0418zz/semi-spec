@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>반도체 칩 스펙 비교 대시보드</title>
+    <!-- Tailwind CSS (스타일링) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js (그래프 라이브러리) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Pretendard', system-ui, -apple-system, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- 헤더 -->
+        <header class="mb-8 border-b border-slate-700 pb-4">
+            <h1 class="text-3xl md:text-4xl font-bold text-sky-400 flex items-center gap-3">
+                <span>💻</span> 반도체 칩 스펙 비교 대시보드
+            </h1>
+            <p class="text-slate-400 mt-2">유명 CPU, GPU, AP 주요 반도체 성능 및 제원 비교 대시보드입니다.</p>
+        </header>
+
+        <!-- 필터 섹션 -->
+        <section class="bg-slate-800 p-4 rounded-xl mb-8 border border-slate-700 flex flex-wrap gap-4 items-center">
+            <span class="font-semibold text-slate-300">카테고리 필터:</span>
+            <div class="flex flex-wrap gap-2" id="filter-container">
+                <button onclick="filterCategory('ALL')" class="category-btn active px-4 py-1.5 rounded-lg bg-sky-500 text-white font-medium hover:bg-sky-600 transition">전체 보기</button>
+                <button onclick="filterCategory('CPU')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">CPU</button>
+                <button onclick="filterCategory('GPU')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">GPU</button>
+                <button onclick="filterCategory('AP')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text
