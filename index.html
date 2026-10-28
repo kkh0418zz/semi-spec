@@ -3,160 +3,714 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>글로벌 반도체 칩 스펙 비교 대시보드</title>
+    <title>3D 반도체 클린룸 시뮬레이터 (Cleanroom 3D Simulator)</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; }
+        #canvas-container { width: 100%; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        .ui-overlay { position: relative; z-index: 10; pointer-events: none; }
+        .interactive { pointer-events: auto; }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.4); border-radius: 3px; }
+    </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
-    <div class="max-w-7xl mx-auto space-y-6">
+<body class="bg-slate-950 text-slate-100 select-none">
+
+    <!-- 3D WebGL Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Overlay Layer -->
+    <div class="ui-overlay min-h-screen flex flex-col justify-between p-4 md:p-6">
         
-        <header class="border-b border-slate-700 pb-4 flex justify-between items-center flex-wrap gap-4">
-            <div>
-                <h1 class="text-3xl font-bold text-sky-400">💻 반도체 스펙 분석 대시보드</h1>
-                <p class="text-slate-400 text-sm mt-1">글로벌 최신 CPU, GPU, AP, AI 반도체 스펙 비교 시스템</p>
+        <!-- Top Navigation & Header Bar -->
+        <header class="interactive bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl p-4 flex flex-wrap justify-between items-center gap-4 shadow-2xl">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-sky-500/20 border border-sky-500/30 rounded-xl text-sky-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black text-sky-400 tracking-wide flex items-center gap-2">
+                        FAB 101 Cleanroom 3D
+                        <span id="clean-class-badge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">ISO Class 1</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">반도체 제조 공정 및 차압/기류 제어 시뮬레이터</p>
+                </div>
             </div>
-            <div class="text-sm bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
-                등록된 칩: <span id="total-count" class="text-sky-400 font-bold">0</span>개
+
+            <!-- Global Status Bar -->
+            <div class="flex items-center gap-4 text-xs font-medium">
+                <div class="bg-slate-950/60 px-3 py-2 rounded-xl border border-slate-800/80 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span class="text-slate-400">차압 상태:</span>
+                    <span id="stat-pressure" class="text-sky-300 font-bold">+18.5 Pa</span>
+                </div>
+                <div class="bg-slate-950/60 px-3 py-2 rounded-xl border border-slate-800/80 flex items-center gap-2">
+                    <span class="text-slate-400">파티클(≥0.1㎛):</span>
+                    <span id="stat-particles" class="text-emerald-400 font-bold">8 pcs/m³</span>
+                </div>
+                <button onclick="resetCamera()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-200 transition text-xs flex items-center gap-1.5 shadow-md">
+                    🎥 시점 리셋
+                </button>
             </div>
         </header>
 
-        <!-- 검색 및 필터 -->
-        <section class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-3">
-            <input type="text" id="search-input" oninput="handleSearch()" placeholder="칩 이름, 제조사 검색 (예: Apple, M4, H100)..." 
-                   class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500">
+        <!-- Main Interactive Dashboard Body -->
+        <div class="flex-1 my-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start pointer-events-none">
             
-            <div class="flex flex-wrap gap-2 items-center">
-                <span class="text-xs text-slate-400 mr-2">카테고리:</span>
-                <button onclick="filterCategory('ALL')" class="category-btn px-3 py-1 rounded bg-sky-500 text-white text-xs font-medium">전체</button>
-                <button onclick="filterCategory('CPU')" class="category-btn px-3 py-1 rounded bg-slate-700 text-slate-300 text-xs">CPU</button>
-                <button onclick="filterCategory('GPU')" class="category-btn px-3 py-1 rounded bg-slate-700 text-slate-300 text-xs">GPU</button>
-                <button onclick="filterCategory('AP')" class="category-btn px-3 py-1 rounded bg-slate-700 text-slate-300 text-xs">AP</button>
-                <button onclick="filterCategory('AI')" class="category-btn px-3 py-1 rounded bg-slate-700 text-slate-300 text-xs">AI 가속기</button>
-            </div>
-        </section>
+            <!-- Left Panel: Equipment Inspector & Dynamic Info -->
+            <aside id="equipment-card" class="interactive lg:col-span-4 bg-slate-900/85 backdrop-blur-md border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-4 max-h-[calc(100vh-180px)] overflow-y-auto">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <h2 class="text-base font-bold text-sky-300 flex items-center gap-2">
+                        <span>🔍</span> 장비 정보 스펙 모니터
+                    </h2>
+                    <span id="equip-status-badge" class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">가동 중 (RUN)</span>
+                </div>
 
-        <!-- 그래프 영역 -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700">
-                <h2 class="text-lg font-bold text-sky-300 mb-3">⚡ 트랜지스터 수 (억 개)</h2>
-                <div id="transistor-bars" class="space-y-3 max-h-96 overflow-y-auto pr-2"></div>
-            </div>
-            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700">
-                <h2 class="text-lg font-bold text-rose-400 mb-3">🔥 소비 전력 (W)</h2>
-                <div id="power-bars" class="space-y-3 max-h-96 overflow-y-auto pr-2"></div>
-            </div>
+                <div id="equip-details" class="space-y-3">
+                    <div class="bg-slate-950/50 p-3.5 rounded-xl border border-slate-800">
+                        <div class="text-xs text-slate-400">선택된 장비</div>
+                        <div id="equip-name" class="text-lg font-bold text-white mt-0.5">EUV Lithography System</div>
+                        <div id="equip-id" class="text-xs text-sky-400 font-mono">EQ-EUV-001</div>
+                    </div>
+
+                    <div class="text-xs text-slate-300 leading-relaxed bg-slate-950/30 p-3 rounded-xl border border-slate-800/50" id="equip-desc">
+                        13.5nm 극자외선(EUV) 광원을 사용하여 초미세 3nm 이하의 반도체 회로 패턴을 웨이퍼에 전사하는 핵심 노광 장비입니다. High-NA 광학계 탑재.
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                            <span class="text-slate-400 block mb-1">설치 구역</span>
+                            <span id="equip-zone" class="font-bold text-slate-200">BAY-01 (Main FAB)</span>
+                        </div>
+                        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                            <span class="text-slate-400 block mb-1">필요 청정도</span>
+                            <span id="equip-clean" class="font-bold text-emerald-400">ISO Class 1</span>
+                        </div>
+                        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                            <span class="text-slate-400 block mb-1">내부 챔버 온도</span>
+                            <span id="equip-temp" class="font-bold text-amber-300">22.0 ℃ (±0.05)</span>
+                        </div>
+                        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                            <span class="text-slate-400 block mb-1">상대 습도</span>
+                            <span id="equip-humid" class="font-bold text-cyan-300">45.0 % RH</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-sky-950/30 border border-sky-500/20 rounded-xl text-xs text-sky-300 flex items-center gap-2">
+                    <span>💡</span> 3D 화면의 장비(노광기, 식각기, CVD, OHT)를 클릭하여 상세 정보를 조회하세요.
+                </div>
+            </aside>
+
+            <!-- Center Empty Zone for 3D View Interaction -->
+            <div class="lg:col-span-4"></div>
+
+            <!-- Right Panel: Environmental Physics Control Panel -->
+            <aside class="interactive lg:col-span-4 bg-slate-900/85 backdrop-blur-md border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-5 max-h-[calc(100vh-180px)] overflow-y-auto">
+                <div class="border-b border-slate-800 pb-3 flex justify-between items-center">
+                    <h2 class="text-base font-bold text-sky-300 flex items-center gap-2">
+                        <span>🎛️</span> 클린룸 공조(HVAC) 제어 패널
+                    </h2>
+                    <span class="text-xs text-slate-400">Real-time Control</span>
+                </div>
+
+                <!-- Airflow Velocity & Mode -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-300 font-medium">FFU 송풍 속도 (Airflow Velocity)</span>
+                        <span id="val-airflow" class="text-sky-400 font-bold">0.45 m/s</span>
+                    </div>
+                    <input type="range" id="slider-airflow" min="0.1" max="1.0" step="0.05" value="0.45" oninput="updateControls()"
+                           class="w-full accent-sky-400 bg-slate-950 h-2 rounded-lg cursor-pointer">
+                </div>
+
+                <!-- Differential Pressure -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-300 font-medium">실내 양압 차압 (Positive Pressure)</span>
+                        <span id="val-pressure" class="text-sky-400 font-bold">18.5 Pa</span>
+                    </div>
+                    <input type="range" id="slider-pressure" min="5" max="30" step="0.5" value="18.5" oninput="updateControls()"
+                           class="w-full accent-sky-400 bg-slate-950 h-2 rounded-lg cursor-pointer">
+                </div>
+
+                <!-- ULPA Filter Efficiency -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-300 font-medium">ULPA 필터 여과 효율</span>
+                        <span id="val-filter" class="text-emerald-400 font-bold">99.9995 %</span>
+                    </div>
+                    <input type="range" id="slider-filter" min="95.0000" max="99.9999" step="0.005" value="99.9995" oninput="updateControls()"
+                           class="w-full accent-emerald-400 bg-slate-950 h-2 rounded-lg cursor-pointer">
+                </div>
+
+                <!-- Flow Mode Toggle (Laminar vs Turbulent) -->
+                <div class="p-3 bg-slate-950/60 border border-slate-800 rounded-xl space-y-2">
+                    <span class="text-xs font-semibold text-slate-300 block">기류 시뮬레이션 모드 (Airflow Dynamics)</span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btn-laminar" onclick="setFlowMode('laminar')" class="py-2 text-xs font-medium rounded-lg bg-sky-500 text-white border border-sky-400 transition shadow">
+                            수직 층류 (Laminar)
+                        </button>
+                        <button id="btn-turbulent" onclick="setFlowMode('turbulent')" class="py-2 text-xs font-medium rounded-lg bg-slate-800 text-slate-400 border border-slate-700 hover:text-white transition">
+                            난류/와류 (Turbulent)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Particle Visibility Toggle -->
+                <div class="flex justify-between items-center p-3 bg-slate-950/60 border border-slate-800 rounded-xl text-xs">
+                    <span class="text-slate-300 font-medium">부유 파티클 시각화</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="toggle-particles" checked onchange="toggleParticleVisibility()" class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
+                    </label>
+                </div>
+            </aside>
         </div>
 
-        <!-- 테이블 -->
-        <section class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-            <div class="p-4 border-b border-slate-700">
-                <h2 class="text-base font-bold text-slate-200">📊 상세 스펙 데이터표</h2>
+        <!-- Bottom Controls Bar -->
+        <footer class="interactive bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl p-3 flex flex-wrap justify-between items-center text-xs text-slate-400 gap-2 shadow-2xl">
+            <div class="flex items-center gap-4">
+                <span>🖱️ <b>좌클릭+드래그</b>: 카메라 회전</span>
+                <span>🖱️ <b>우클릭+드래그</b>: 화면 이동</span>
+                <span>🔍 <b>휠 스크롤</b>: 확대/축소</span>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead>
-                        <tr class="bg-slate-700/50 text-slate-300 border-b border-slate-700">
-                            <th class="p-3">칩 이름</th>
-                            <th class="p-3">제조사</th>
-                            <th class="p-3">분류</th>
-                            <th class="p-3">공정</th>
-                            <th class="p-3">트랜지스터</th>
-                            <th class="p-3">소비전력</th>
-                        </tr>
-                    </thead>
-                    <tbody id="chip-table-body"></tbody>
-                </table>
+            <div class="text-sky-400 font-semibold">
+                Semiconductor FAB 3D Cleanroom Digital Twin v1.0
             </div>
-        </section>
+        </footer>
     </div>
 
+    <!-- 3D Simulation Logic Script -->
     <script>
-        const chipsData = [
-            { name: "Apple M4 Max", vendor: "Apple", type: "AP", nm: "3nm (TSMC)", transistors: 280, power: 62 },
-            { name: "Apple M3 Max", vendor: "Apple", type: "AP", nm: "3nm (TSMC)", transistors: 920, power: 78 },
-            { name: "Intel Core i9-14900K", vendor: "Intel", type: "CPU", nm: "10nm (Intel 7)", transistors: 250, power: 253 },
-            { name: "AMD Ryzen 9 9950X", vendor: "AMD", type: "CPU", nm: "4nm (TSMC)", transistors: 178, power: 170 },
-            { name: "NVIDIA RTX 4090", vendor: "NVIDIA", type: "GPU", nm: "4nm (TSMC 4N)", transistors: 763, power: 450 },
-            { name: "NVIDIA H100", vendor: "NVIDIA", type: "AI", nm: "4nm (TSMC 4N)", transistors: 800, power: 700 },
-            { name: "NVIDIA Blackwell B200", vendor: "NVIDIA", type: "AI", nm: "4nm (TSMC 4NP)", transistors: 2080, power: 1000 },
-            { name: "AMD Instinct MI300X", vendor: "AMD", type: "AI", nm: "5nm/6nm (TSMC)", transistors: 1530, power: 750 },
-            { name: "Snapdragon X Elite", vendor: "Qualcomm", type: "AP", nm: "4nm (TSMC)", transistors: 450, power: 45 },
-            { name: "Exynos 2400", vendor: "Samsung", type: "AP", nm: "4nm (Samsung)", transistors: 110, power: 11 }
-        ];
+        // --- Global Simulation Variables ---
+        let scene, camera, renderer, controls;
+        let particles, particleGeo, particleMat;
+        let equipmentObjects = [];
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
 
-        let currentCategory = 'ALL';
-        let searchQuery = '';
+        // Physics parameters
+        let params = {
+            airflowSpeed: 0.45,
+            pressure: 18.5,
+            filterEff: 99.9995,
+            flowMode: 'laminar', // 'laminar' or 'turbulent'
+            showParticles: true
+        };
 
-        function renderData() {
-            const filtered = chipsData.filter(chip => {
-                const matchCategory = (currentCategory === 'ALL' || chip.type === currentCategory);
-                const matchSearch = searchQuery === '' || 
-                    chip.name.toLowerCase().includes(searchQuery) || 
-                    chip.vendor.toLowerCase().includes(searchQuery);
-                return matchCategory && matchSearch;
-            });
+        const particleCount = 1500;
+        let particlePositions, particleVelocities;
 
-            document.getElementById('total-count').innerText = filtered.length;
+        // Semiconductor Equipments Specs Data
+        const equipmentData = {
+            "EUV Lithography": {
+                name: "EUV Lithography System (노광기)",
+                id: "EQ-EUV-001",
+                zone: "BAY-01 Litho Area",
+                cleanliness: "ISO Class 1",
+                temp: "22.0 ℃ (±0.02)",
+                humid: "45.0 % RH",
+                desc: "13.5nm 극자외선(EUV) 반사형 거울 광학계를 사용하여 웨이퍼 상에 초미세 3nm 회로 패턴을 노광하는 반도체 핵심 장비입니다."
+            },
+            "Etching Chamber": {
+                name: "Dry Plasma Etcher (식각 장비)",
+                id: "EQ-ETC-004",
+                zone: "BAY-02 Etch Area",
+                cleanliness: "ISO Class 2",
+                temp: "23.1 ℃",
+                humid: "42.5 % RH",
+                desc: "고밀도 플라즈마 반응성 가스를 이용해 노광 패턴 이외의 미필요 박막 부위를 수 나노미터 정밀도로 화학적/물리적 깎아내는 장비입니다."
+            },
+            "CVD Tool": {
+                name: "PECVD System (증착 장비)",
+                id: "EQ-CVD-009",
+                zone: "BAY-03 Thin Film Area",
+                cleanliness: "ISO Class 3",
+                temp: "24.5 ℃",
+                humid: "40.0 % RH",
+                desc: "플라즈마 화학 기상 증착(PECVD) 기법을 사용하여 웨이퍼 표면에 절연막 또는 절연 보호 박막(SiO2, SiN)을 균일하게 덮는 공정 장비입니다."
+            },
+            "Wafer Inspection": {
+                name: "Wafer Defect Inspection Station (검사 장비)",
+                id: "EQ-INS-002",
+                zone: "BAY-04 QA/Metrology",
+                cleanliness: "ISO Class 1",
+                temp: "21.8 ℃",
+                humid: "45.0 % RH",
+                desc: "전자빔(E-Beam) 및 광학 스캐닝을 통해 웨이퍼 상의 미세 나노 파티클 결함 및 회로 쇼트 여부를 실시간 고속 검사하는 모듈입니다."
+            },
+            "OHT Vehicle": {
+                name: "Overhead Hoist Transport (OHT)",
+                id: "AMHS-OHT-12",
+                zone: "Overhead Rail Line",
+                cleanliness: "ISO Class 1 (Sealed FOUP)",
+                temp: "22.5 ℃",
+                humid: "44.0 % RH",
+                desc: "천장 레이아웃 레일을 따라 웨이퍼 이송 용기(FOUP)를 자동으로 탑재하여 공정 장비 간을 고속 이송하는 무인 자동 반송 시스템입니다."
+            }
+        };
 
-            // 테이블
-            document.getElementById('chip-table-body').innerHTML = filtered.map(chip => `
-                <tr class="border-b border-slate-700/50 hover:bg-slate-700/30">
-                    <td class="p-3 font-semibold text-sky-400">${chip.name}</td>
-                    <td class="p-3 text-slate-300">${chip.vendor}</td>
-                    <td class="p-3"><span class="px-2 py-0.5 rounded bg-slate-700 text-xs">${chip.type}</span></td>
-                    <td class="p-3 text-slate-300">${chip.nm}</td>
-                    <td class="p-3 text-emerald-400 font-semibold">${chip.transistors}억 개</td>
-                    <td class="p-3 text-rose-400 font-semibold">${chip.power} W</td>
-                </tr>
-            `).join('');
+        // --- Initialize 3D Scene ---
+        function init() {
+            const container = document.getElementById('canvas-container');
 
-            const maxT = Math.max(...chipsData.map(c => c.transistors));
-            const maxP = Math.max(...chipsData.map(c => c.power));
+            // 1. Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0f1d);
+            scene.fog = new THREE.FogExp2(0x0a0f1d, 0.025);
 
-            // 트랜지스터 그래프
-            document.getElementById('transistor-bars').innerHTML = filtered.map(chip => `
-                <div>
-                    <div class="flex justify-between text-xs mb-1">
-                        <span class="text-slate-300">${chip.name}</span>
-                        <span class="text-sky-400 font-bold">${chip.transistors}억 개</span>
-                    </div>
-                    <div class="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden">
-                        <div class="bg-sky-400 h-full rounded-full" style="width: ${(chip.transistors / maxT) * 100}%"></div>
-                    </div>
-                </div>
-            `).join('');
+            // 2. Camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(22, 16, 28);
 
-            // 전력 그래프
-            document.getElementById('power-bars').innerHTML = filtered.map(chip => `
-                <div>
-                    <div class="flex justify-between text-xs mb-1">
-                        <span class="text-slate-300">${chip.name}</span>
-                        <span class="text-rose-400 font-bold">${chip.power} W</span>
-                    </div>
-                    <div class="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden">
-                        <div class="bg-rose-400 h-full rounded-full" style="width: ${(chip.power / maxP) * 100}%"></div>
-                    </div>
-                </div>
-            `).join('');
+            // 3. Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // 4. Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.05; // Prevent camera going under floor
+            controls.minDistance = 5;
+            controls.maxDistance = 70;
+
+            // 5. Lighting
+            setupLighting();
+
+            // 6. Build Cleanroom Objects
+            buildCleanroomFAB();
+
+            // 7. Particle Simulation setup
+            setupParticles();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('pointerdown', onPointerDown);
+
+            // Start Animation Loop
+            animate();
         }
 
-        function filterCategory(cat) {
-            currentCategory = cat;
-            document.querySelectorAll('.category-btn').forEach(btn => {
-                if (btn.innerText.includes(cat) || (cat === 'ALL' && btn.innerText.includes('전체'))) {
-                    btn.className = 'category-btn px-3 py-1 rounded bg-sky-500 text-white text-xs font-medium';
-                } else {
-                    btn.className = 'category-btn px-3 py-1 rounded bg-slate-700 text-slate-300 text-xs';
+        // --- Lighting Setup ---
+        function setupLighting() {
+            const ambientLight = new THREE.AmbientLight(0xdbeafe, 0.6);
+            scene.add(ambientLight);
+
+            // Cleanroom Ceiling LED Strip Panels
+            for (let x = -12; x <= 12; x += 8) {
+                for (let z = -12; z <= 12; z += 8) {
+                    const light = new THREE.PointLight(0x38bdf8, 0.8, 18);
+                    light.position.set(x, 9.5, z);
+                    scene.add(light);
                 }
+            }
+
+            // Directional Main Shadow Light
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(15, 25, 15);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+        }
+
+        // --- Build Cleanroom Structure & Machinery ---
+        function buildCleanroomFAB() {
+            // Floor (Raised Access Floor with Perforated Tiles)
+            const floorGeo = new THREE.PlaneGeometry(36, 36);
+            const floorMat = new THREE.MeshStandardMaterial({
+                color: 0x1e293b,
+                roughness: 0.3,
+                metalness: 0.4
             });
-            renderData();
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Floor Grid Helper Lines
+            const gridHelper = new THREE.GridHelper(36, 36, 0x38bdf8, 0x334155);
+            gridHelper.position.y = 0.01;
+            scene.add(gridHelper);
+
+            // Ceiling (FFU Filter Ceiling Grid)
+            const ceilingGeo = new THREE.PlaneGeometry(36, 36);
+            const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, side: THREE.DoubleSide });
+            const ceiling = new THREE.Mesh(ceilingGeo, ceilingMat);
+            ceiling.position.y = 10;
+            ceiling.rotation.x = Math.PI / 2;
+            scene.add(ceiling);
+
+            // Glass Cleanroom Walls
+            const wallMat = new THREE.MeshPhysicalMaterial({
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.15,
+                roughness: 0.1,
+                transmission: 0.9,
+                thickness: 0.5
+            });
+            
+            const wallGeo = new THREE.BoxGeometry(36, 10, 0.4);
+            const backWall = new THREE.Mesh(wallGeo, wallMat);
+            backWall.position.set(0, 5, -18);
+            scene.add(backWall);
+
+            // --- Equipments Creation ---
+            // 1. EUV Lithography Tool (Left)
+            const euvGroup = createEUVTool();
+            euvGroup.position.set(-9, 0, -6);
+            euvGroup.userData = { name: "EUV Lithography" };
+            scene.add(euvGroup);
+            equipmentObjects.push(euvGroup);
+
+            // 2. Etching Chamber (Right)
+            const etchGroup = createEtcherTool();
+            etchGroup.position.set(9, 0, -6);
+            etchGroup.userData = { name: "Etching Chamber" };
+            scene.add(etchGroup);
+            equipmentObjects.push(etchGroup);
+
+            // 3. CVD Deposition Tool (Back Center)
+            const cvdGroup = createCVDTool();
+            cvdGroup.position.set(0, 0, -10);
+            cvdGroup.userData = { name: "CVD Tool" };
+            scene.add(cvdGroup);
+            equipmentObjects.push(cvdGroup);
+
+            // 4. Wafer Inspection Station (Front Center)
+            const inspectGroup = createInspectTool();
+            inspectGroup.position.set(-4, 0, 8);
+            inspectGroup.userData = { name: "Wafer Inspection" };
+            scene.add(inspectGroup);
+            equipmentObjects.push(inspectGroup);
+
+            // 5. Overhead Hoist Transport (OHT) Track & Vehicle
+            const ohtGroup = createOHTSystem();
+            ohtGroup.userData = { name: "OHT Vehicle" };
+            scene.add(ohtGroup);
+            equipmentObjects.push(ohtGroup);
         }
 
-        function handleSearch() {
-            searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
-            renderData();
+        // --- Equipment Helper Builders ---
+        function createEUVTool() {
+            const group = new THREE.Group();
+            const mainMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.8, roughness: 0.2 });
+            const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x0284c7, transparent: true, opacity: 0.5 });
+            const accentMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, emissive: 0x0284c7, emissiveIntensity: 0.3 });
+
+            // Body
+            const body = new THREE.Mesh(new THREE.BoxGeometry(6, 4.5, 5), mainMat);
+            body.position.y = 2.25;
+            body.castShadow = true;
+            group.add(body);
+
+            // Top Module Box
+            const topBox = new THREE.Mesh(new THREE.BoxGeometry(4.5, 2, 4), mainMat);
+            topBox.position.set(0, 5.5, 0);
+            group.add(topBox);
+
+            // Glass Inspection Window
+            const win = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.8, 0.1), glassMat);
+            win.position.set(0, 2.5, 2.55);
+            group.add(win);
+
+            // Status Light Tower
+            const lightTower = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2), accentMat);
+            lightTower.position.set(2.5, 6.8, 2);
+            group.add(lightTower);
+
+            return group;
         }
 
-        renderData();
+        function createEtcherTool() {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.7, roughness: 0.3 });
+            const chamberMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.9, roughness: 0.1 });
+
+            const base = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 5), mat);
+            base.position.y = 1.5;
+            base.castShadow = true;
+            group.add(base);
+
+            // Cylindrical Plasma Vacuum Chamber
+            const chamber = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 2.5, 32), chamberMat);
+            chamber.position.set(0, 4.25, 0);
+            group.add(chamber);
+
+            return group;
+        }
+
+        function createCVDTool() {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color: 0xc084fc, metalness: 0.5, roughness: 0.3 });
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 });
+
+            const base = new THREE.Mesh(new THREE.BoxGeometry(7, 3.5, 4), bodyMat);
+            base.position.y = 1.75;
+            group.add(base);
+
+            for (let i = -2; i <= 2; i += 2) {
+                const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2.2, 16), mat);
+                tube.position.set(i, 4.25, 0);
+                group.add(tube);
+            }
+
+            return group;
+        }
+
+        function createInspectTool() {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.4, roughness: 0.2 });
+            const screenMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+
+            const table = new THREE.Mesh(new THREE.BoxGeometry(4, 2.5, 3), mat);
+            table.position.y = 1.25;
+            group.add(table);
+
+            const screen = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 0.1), screenMat);
+            screen.position.set(0, 3.2, 0);
+            screen.rotation.x = -0.2;
+            group.add(screen);
+
+            return group;
+        }
+
+        function createOHTSystem() {
+            const group = new THREE.Group();
+            const railMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.9, roughness: 0.2 });
+            const vehicleMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, metalness: 0.6 });
+
+            // Overhead Rail
+            const rail = new THREE.Mesh(new THREE.BoxGeometry(32, 0.3, 0.3), railMat);
+            rail.position.set(0, 8.2, 0);
+            group.add(rail);
+
+            // Moving Vehicle
+            const veh = new THREE.Mesh(new THREE.BoxGeometry(2, 1.2, 1.5), vehicleMat);
+            veh.position.set(0, 7.3, 0);
+            veh.name = "OHT_Body";
+            group.add(veh);
+
+            // FOUP (Wafer Container Box) attached
+            const foupMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
+            const foup = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1, 1.2), foupMat);
+            foup.position.set(0, 6.2, 0);
+            group.add(foup);
+
+            return group;
+        }
+
+        // --- Particle Simulation Engine Setup ---
+        function setupParticles() {
+            particleGeo = new THREE.BufferGeometry();
+            particlePositions = new Float32Array(particleCount * 3);
+            particleVelocities = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount; i++) {
+                // Random position inside Cleanroom Bounds
+                particlePositions[i * 3] = (Math.random() - 0.5) * 32;
+                particlePositions[i * 3 + 1] = Math.random() * 9.5;
+                particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 32;
+
+                // Initial velocities
+                particleVelocities[i * 3] = (Math.random() - 0.5) * 0.05;
+                particleVelocities[i * 3 + 1] = -Math.random() * 0.1;
+                particleVelocities[i * 3 + 2] = (Math.random() - 0.5) * 0.05;
+            }
+
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+            // Custom Glow Texture Shader Material
+            const canvas = document.createElement('canvas');
+            canvas.width = 16; canvas.height = 16;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createRadialGradient(8, 8, 0, 8, 8, 8);
+            grad.addColorStop(0, 'rgba(56, 189, 248, 1)');
+            grad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 16, 16);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            particleMat = new THREE.PointsMaterial({
+                size: 0.35,
+                map: texture,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            particles = new THREE.Points(particleGeo, particleMat);
+            scene.add(particles);
+        }
+
+        // --- Physics Update in Animation Loop ---
+        function updateParticlePhysics() {
+            if (!params.showParticles) return;
+
+            const positions = particleGeo.attributes.position.array;
+            const speed = params.airflowSpeed * 0.15;
+
+            for (let i = 0; i < particleCount; i++) {
+                let idx = i * 3;
+
+                if (params.flowMode === 'laminar') {
+                    // Straight downward laminar airflow from FFU ceiling
+                    positions[idx + 1] -= speed;
+                    positions[idx] += (Math.random() - 0.5) * 0.01;
+                    positions[idx + 2] += (Math.random() - 0.5) * 0.01;
+                } else {
+                    // Turbulent flow with vortices
+                    positions[idx + 1] -= speed * 0.6;
+                    positions[idx] += Math.sin(positions[idx + 1] * 2.0 + Date.now() * 0.002) * 0.08;
+                    positions[idx + 2] += Math.cos(positions[idx] * 2.0 + Date.now() * 0.002) * 0.08;
+                }
+
+                // Reset particles reaching floor perforated tiles
+                if (positions[idx + 1] <= 0.1) {
+                    positions[idx + 1] = 9.5; // Top ceiling
+                    positions[idx] = (Math.random() - 0.5) * 32;
+                    positions[idx + 2] = (Math.random() - 0.5) * 32;
+                }
+            }
+
+            particleGeo.attributes.position.needsUpdate = true;
+        }
+
+        // --- Animate Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Update OrbitControls
+            controls.update();
+
+            // Update Particle Airflow Physics
+            updateParticlePhysics();
+
+            // Animate OHT Vehicle along track
+            const oht = scene.getObjectByName("OHT_Body");
+            if (oht) {
+                oht.position.x = Math.sin(Date.now() * 0.001) * 12;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- Interaction & Raycasting ---
+        function onPointerDown(event) {
+            // Calculate mouse position
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(equipmentObjects, true);
+
+            if (intersects.length > 0) {
+                let topObj = intersects[0].object;
+                while (topObj.parent && topObj.parent.type === "Group" && topObj.parent !== scene) {
+                    if (topObj.userData && topObj.userData.name) break;
+                    topObj = topObj.parent;
+                }
+
+                const equipKey = topObj.userData.name;
+                if (equipKey && equipmentData[equipKey]) {
+                    showEquipmentDetails(equipmentData[equipKey]);
+                }
+            }
+        }
+
+        function showEquipmentDetails(data) {
+            document.getElementById('equip-name').innerText = data.name;
+            document.getElementById('equip-id').innerText = data.id;
+            document.getElementById('equip-zone').innerText = data.zone;
+            document.getElementById('equip-clean').innerText = data.cleanliness;
+            document.getElementById('equip-temp').innerText = data.temp;
+            document.getElementById('equip-humid').innerText = data.humid;
+            document.getElementById('equip-desc').innerText = data.desc;
+        }
+
+        // --- UI Control Panel Handlers ---
+        function updateControls() {
+            params.airflowSpeed = parseFloat(document.getElementById('slider-airflow').value);
+            params.pressure = parseFloat(document.getElementById('slider-pressure').value);
+            params.filterEff = parseFloat(document.getElementById('slider-filter').value);
+
+            // UI Display updates
+            document.getElementById('val-airflow').innerText = params.airflowSpeed.toFixed(2) + " m/s";
+            document.getElementById('val-pressure').innerText = params.pressure.toFixed(1) + " Pa";
+            document.getElementById('val-filter').innerText = params.filterEff.toFixed(4) + " %";
+
+            document.getElementById('stat-pressure').innerText = "+" + params.pressure.toFixed(1) + " Pa";
+
+            // Recalculate Cleanroom Particle Count (Physics Simulation Equation)
+            let rawCount = Math.round((1.0 - params.airflowSpeed) * 30 + (100 - params.filterEff) * 2000);
+            if (params.flowMode === 'turbulent') rawCount *= 3.5;
+
+            document.getElementById('stat-particles').innerText = Math.max(2, rawCount) + " pcs/m³";
+
+            // Dynamic Cleanliness Class Assessment
+            const badge = document.getElementById('clean-class-badge');
+            if (rawCount <= 10) {
+                badge.innerText = "ISO Class 1";
+                badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
+            } else if (rawCount <= 100) {
+                badge.innerText = "ISO Class 2";
+                badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/40";
+            } else {
+                badge.innerText = "ISO Class 3+ (주의)";
+                badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40";
+            }
+        }
+
+        function setFlowMode(mode) {
+            params.flowMode = mode;
+            const btnLaminar = document.getElementById('btn-laminar');
+            const btnTurbulent = document.getElementById('btn-turbulent');
+
+            if (mode === 'laminar') {
+                btnLaminar.className = "py-2 text-xs font-medium rounded-lg bg-sky-500 text-white border border-sky-400 transition shadow";
+                btnTurbulent.className = "py-2 text-xs font-medium rounded-lg bg-slate-800 text-slate-400 border border-slate-700 hover:text-white transition";
+            } else {
+                btnTurbulent.className = "py-2 text-xs font-medium rounded-lg bg-rose-500 text-white border border-rose-400 transition shadow";
+                btnLaminar.className = "py-2 text-xs font-medium rounded-lg bg-slate-800 text-slate-400 border border-slate-700 hover:text-white transition";
+            }
+            updateControls();
+        }
+
+        function toggleParticleVisibility() {
+            params.showParticles = document.getElementById('toggle-particles').checked;
+            particles.visible = params.showParticles;
+        }
+
+        function resetCamera() {
+            camera.position.set(22, 16, 28);
+            controls.target.set(0, 2, 0);
+            controls.update();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Initialize App on Window Load
+        window.onload = function() {
+            init();
+        };
     </script>
 </body>
 </html>
