@@ -4,17 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>반도체 칩 스펙 비교 대시보드</title>
-    <!-- Tailwind CSS (스타일링) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js (그래프 라이브러리) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: 'Pretendard', system-ui, -apple-system, sans-serif; }
-    </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
     <div class="max-w-7xl mx-auto">
-        <!-- 헤더 -->
         <header class="mb-8 border-b border-slate-700 pb-4">
             <h1 class="text-3xl md:text-4xl font-bold text-sky-400 flex items-center gap-3">
                 <span>💻</span> 반도체 칩 스펙 비교 대시보드
@@ -26,7 +19,133 @@
         <section class="bg-slate-800 p-4 rounded-xl mb-8 border border-slate-700 flex flex-wrap gap-4 items-center">
             <span class="font-semibold text-slate-300">카테고리 필터:</span>
             <div class="flex flex-wrap gap-2" id="filter-container">
-                <button onclick="filterCategory('ALL')" class="category-btn active px-4 py-1.5 rounded-lg bg-sky-500 text-white font-medium hover:bg-sky-600 transition">전체 보기</button>
+                <button onclick="filterCategory('ALL')" class="category-btn px-4 py-1.5 rounded-lg bg-sky-500 text-white font-medium transition">전체 보기</button>
                 <button onclick="filterCategory('CPU')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">CPU</button>
                 <button onclick="filterCategory('GPU')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">GPU</button>
-                <button onclick="filterCategory('AP')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text
+                <button onclick="filterCategory('AP')" class="category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition">Mobile/PC AP</button>
+            </div>
+        </section>
+
+        <!-- 순수 바 그래프 영역 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h2 class="text-xl font-bold text-sky-300 mb-4">⚡ 트랜지스터 수 비교 (최대 920억 개 기준)</h2>
+                <div id="transistor-bars" class="space-y-4">
+                    <!-- 자바스크립트로 생성됨 -->
+                </div>
+            </div>
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h2 class="text-xl font-bold text-rose-400 mb-4">🔥 소비 전력 비교 (최대 450W 기준)</h2>
+                <div id="power-bars" class="space-y-4">
+                    <!-- 자바스크립트로 생성됨 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 데이터 테이블 -->
+        <section class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+            <div class="p-4 border-b border-slate-700">
+                <h2 class="text-xl font-bold text-slate-200">📊 반도체 스펙 상세 데이터</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-700/50 text-slate-300 border-b border-slate-700">
+                            <th class="p-4">칩 이름</th>
+                            <th class="p-4">분류</th>
+                            <th class="p-4">제조 공정</th>
+                            <th class="p-4">트랜지스터 수</th>
+                            <th class="p-4">소비 전력</th>
+                        </tr>
+                    </thead>
+                    <tbody id="chip-table-body">
+                        <!-- JS 데이터 삽입 위치 -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const chipsData = [
+            { name: "Apple M3 Max", type: "AP", nm: "3nm (TSMC)", transistors: 920, power: 78 },
+            { name: "Intel Core i9-14900K", type: "CPU", nm: "10nm (Intel 7)", transistors: 250, power: 253 },
+            { name: "AMD Ryzen 9 7950X", type: "CPU", nm: "5nm (TSMC)", transistors: 131, power: 170 },
+            { name: "NVIDIA RTX 4090", type: "GPU", nm: "4nm (TSMC 4N)", transistors: 763, power: 450 },
+            { name: "Snapdragon 8 Gen 3", type: "AP", nm: "4nm (TSMC)", transistors: 100, power: 10 }
+        ];
+
+        let currentCategory = 'ALL';
+
+        function renderData() {
+            const filtered = currentCategory === 'ALL' 
+                ? chipsData 
+                : chipsData.filter(chip => chip.type === currentCategory);
+
+            // 1. 테이블 갱신
+            const tbody = document.getElementById('chip-table-body');
+            tbody.innerHTML = filtered.map(chip => `
+                <tr class="border-b border-slate-700/50 hover:bg-slate-700/30 transition">
+                    <td class="p-4 font-semibold text-sky-400">${chip.name}</td>
+                    <td class="p-4"><span class="px-2 py-1 rounded bg-slate-700 text-xs text-slate-300">${chip.type}</span></td>
+                    <td class="p-4 text-slate-300">${chip.nm}</td>
+                    <td class="p-4 text-emerald-400 font-semibold">${chip.transistors.toLocaleString()}억 개</td>
+                    <td class="p-4 text-rose-400 font-semibold">${chip.power} W</td>
+                </tr>
+            `).join('');
+
+            // 2. 트랜지스터 수 바 그래프 갱신
+            const tContainer = document.getElementById('transistor-bars');
+            tContainer.innerHTML = filtered.map(chip => {
+                const percent = (chip.transistors / 920) * 100;
+                return `
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-300 font-medium">${chip.name}</span>
+                            <span class="text-sky-400 font-bold">${chip.transistors}억 개</span>
+                        </div>
+                        <div class="w-full bg-slate-700 h-3 rounded-full overflow-hidden">
+                            <div class="bg-sky-400 h-full rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // 3. 소비 전력 바 그래프 갱신
+            const pContainer = document.getElementById('power-bars');
+            pContainer.innerHTML = filtered.map(chip => {
+                const percent = (chip.power / 450) * 100;
+                return `
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-300 font-medium">${chip.name}</span>
+                            <span class="text-rose-400 font-bold">${chip.power} W</span>
+                        </div>
+                        <div class="w-full bg-slate-700 h-3 rounded-full overflow-hidden">
+                            <div class="bg-rose-400 h-full rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterCategory(category) {
+            currentCategory = category;
+            
+            // 버튼 스타일 갱신
+            const buttons = document.querySelectorAll('.category-btn');
+            buttons.forEach(btn => {
+                if (btn.innerText.includes(category) || (category === 'ALL' && btn.innerText.includes('전체'))) {
+                    btn.className = 'category-btn px-4 py-1.5 rounded-lg bg-sky-500 text-white font-medium transition';
+                } else {
+                    btn.className = 'category-btn px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition';
+                }
+            });
+
+            renderData();
+        }
+
+        renderData();
+    </script>
+</body>
+</html>
